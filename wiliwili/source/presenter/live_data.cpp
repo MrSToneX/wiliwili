@@ -15,8 +15,10 @@ void LiveDataRequest::requestData(int roomid) {
     ASYNC_RETAIN
     BILI::get_live_room_play_info(
         roomid, defaultQuality,
-        [ASYNC_TOKEN](const auto& result) {
+        [ASYNC_TOKEN, roomid](const auto& result) {
             liveRoomPlayInfo = result;
+            brls::Logger::debug("LiveRoomPlayInfo: room_id={}, uid={}, live_status={}",
+                               result.room_id, result.uid, result.live_status);
             qualityDescriptionMap.clear();
             for (auto& i : liveRoomPlayInfo.playurl_info.playurl.g_qn_desc) {
                 qualityDescriptionMap[i.qn] = i.desc;
@@ -121,7 +123,7 @@ void LiveDataRequest::requestLiveAnchorInfo(int roomid) {
         // 从liveRoomPlayInfo中获取的数据
         std::string uid = std::to_string(liveRoomPlayInfo.uid);
         brls::Logger::debug("get live anchor info, uid: {}", uid);
-        
+
         // 调用已有的用户卡片API
         std::vector<std::string> uids = {uid};
         ASYNC_RETAIN
@@ -131,18 +133,20 @@ void LiveDataRequest::requestLiveAnchorInfo(int roomid) {
                 if (!result.empty()) {
                     std::string face = result[0].face;
                     std::string uname = result[0].name;
-                    
+
+                    brls::Logger::debug("get live anchor info success: name={}, face={}", uname, face);
                     brls::sync([ASYNC_TOKEN, face, uname]() {
                         ASYNC_RELEASE
                         this->onAnchorInfo(face, uname);
                     });
                 } else {
-                    brls::Logger::error("get live anchor info: empty result");
+                    brls::Logger::error("get live anchor info: empty result, 无法获取用户信息");
                     ASYNC_RELEASE
+                    this->onAnchorInfo("", "主播");
                 }
             },
             [ASYNC_TOKEN](BILI_ERR) {
-                brls::Logger::error("get live anchor info: {}", error);
+                brls::Logger::error("get live anchor info failed: {}", error);
                 brls::sync([ASYNC_TOKEN]() {
                     ASYNC_RELEASE
                     this->onAnchorInfo("", "主播");
@@ -150,7 +154,7 @@ void LiveDataRequest::requestLiveAnchorInfo(int roomid) {
             }
         );
     } else {
-        brls::Logger::error("get live anchor info: no uid available");
+        brls::Logger::error("get live anchor info: no uid available, uid={}", liveRoomPlayInfo.uid);
         this->onAnchorInfo("", "主播");
     }
 }

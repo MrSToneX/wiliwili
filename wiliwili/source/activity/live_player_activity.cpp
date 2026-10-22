@@ -169,53 +169,55 @@ void LiveActivity::onContentAvailable()
     MPVCore::instance().setAspect(
         ProgramConfig::instance().getSettingItem(SettingItem::PLAYER_ASPECT, std::string{"-1"}));
 
+    // 绑定左侧详情区域的UI元素（始终显示，不依赖侧边栏设置）
+    this->liveAuthor = (UserInfoView*)this->getView("live_author");
+    this->liveTitleLabel = (brls::Label*)this->getView("live/title");
+    this->anchorTitleLabel = (brls::Label*)this->getView("anchor/title");
+    this->liveDetailLeftBox = (brls::Box*)this->getView("live_detail_left_box");
+
+    // 设置直播标题
+    if (this->liveTitleLabel) {
+        this->liveTitleLabel->setText(liveData.title);
+    }
+
+    // 初始显示空的主播信息，等待API获取后更新
+    if (this->liveAuthor) {
+        this->liveAuthor->setUserInfo("", "加载中...", "");
+        this->liveAuthor->setHintType(InfoHintType::NONE); // 初始不显示关注按钮
+
+        // 注册点击
+        this->liveAuthor->registerClickAction([this](...) -> bool {
+            if (!DialogHelper::checkLogin()) return true;
+
+            uint64_t uid = this->liveRoomPlayInfo.uid;
+            if (uid == 0) {
+                brls::Logger::warning("LiveActivity: 主播信息尚未加载，无法操作关注状态");
+                return true;
+            }
+
+            if (std::to_string(uid) == ProgramConfig::instance().getUserID()) return true;
+
+            if (this->anchor_following) {
+                auto dialog = new brls::Dialog("wiliwili/player/not_follow"_i18n);
+                dialog->addButton("hints/cancel"_i18n, []() {});
+                dialog->addButton("hints/ok"_i18n, [this]() { this->follow_anchor(false); });
+                dialog->open();
+            } else {
+                this->follow_anchor(true);
+            }
+            return true;
+        });
+
+        // 添加手势识别器以支持鼠标点击
+        this->liveAuthor->addGestureRecognizer(new brls::TapGestureRecognizer(this->liveAuthor));
+    }
+
     // 根据侧边栏设置调整界面布局
     if (this->shouldShowSidebar()) {
         // 绑定侧边栏相关的UI元素
-        this->liveAuthor = (UserInfoView*)this->getView("live_author");
         this->liveDanmakuContainer = (brls::Box*)this->getView("live_danmaku_container");
         this->liveDanmakuList = (brls::ScrollingFrame*)this->getView("live_danmaku_list");
-        this->liveTitleLabel = (brls::Label*)this->getView("live/title");
-        this->anchorTitleLabel = (brls::Label*)this->getView("anchor/title");
         this->liveDanmakuSidebar = (brls::Box*)this->getView("live_danmaku_sidebar");
-        this->liveDetailLeftBox = (brls::Box*)this->getView("live_detail_left_box");
-        
-        // 设置直播标题
-        if (this->liveTitleLabel) {
-            this->liveTitleLabel->setText(liveData.title);
-        }
-        
-        // 初始显示空的主播信息，等待API获取后更新
-        if (this->liveAuthor) {
-            this->liveAuthor->setUserInfo("", "加载中...", "");
-            this->liveAuthor->setHintType(InfoHintType::NONE); // 初始不显示关注按钮
-
-            // 注册点击
-            this->liveAuthor->registerClickAction([this](...) -> bool {
-                if (!DialogHelper::checkLogin()) return true;
-
-                uint64_t uid = this->liveRoomPlayInfo.uid;
-                if (uid == 0) {
-                    brls::Logger::warning("LiveActivity: 主播信息尚未加载，无法操作关注状态");
-                    return true;
-                }
-                
-                if (std::to_string(uid) == ProgramConfig::instance().getUserID()) return true;
-
-                if (this->anchor_following) {
-                    auto dialog = new brls::Dialog("wiliwili/player/not_follow"_i18n);
-                    dialog->addButton("hints/cancel"_i18n, []() {});
-                    dialog->addButton("hints/ok"_i18n, [this]() { this->follow_anchor(false); });
-                    dialog->open();
-                } else {
-                    this->follow_anchor(true);
-                }
-                return true;
-            });
-
-            // 添加手势识别器以支持鼠标点击
-            this->liveAuthor->addGestureRecognizer(new brls::TapGestureRecognizer(this->liveAuthor));
-        }
     }
     
     // 设置视频相关UI
@@ -350,7 +352,7 @@ void LiveActivity::onLiveData(const bilibili::LiveRoomPlayInfo &result)
                 brls::sync([ASYNC_TOKEN, followed]() {
                     ASYNC_RELEASE
                     this->anchor_following = followed;
-                    if (this->shouldShowSidebar() && this->liveAuthor) {
+                    if (this->liveAuthor) {
                         if (ProgramConfig::instance().getUserID() == std::to_string(this->liveRoomPlayInfo.uid))
                             this->liveAuthor->setHintType(InfoHintType::NONE);
                         else
@@ -879,9 +881,9 @@ LiveActivity::~LiveActivity() {
 // 添加onAnchorInfo实现
 void LiveActivity::onAnchorInfo(const std::string& face, const std::string& uname) {
     brls::Logger::debug("LiveActivity: onAnchorInfo: 用户名={}, 头像URL={}", uname, face);
-    
-    if (this->shouldShowSidebar() && this->liveAuthor) {
-        // 设置主播信息
+
+    // 设置主播信息（不依赖侧边栏设置）
+    if (this->liveAuthor) {
         if (!face.empty()) {
             this->liveAuthor->setUserInfo(face, uname, liveData.watched_show.text_large);
         } else {
@@ -895,12 +897,12 @@ void LiveActivity::onAnchorInfo(const std::string& face, const std::string& unam
         this->liveData.cover = face;
     else if (this->liveData.cover.empty())
         this->liveData.cover = "pictures/default_avatar.png";
-    
+
     // 更新标题
     if (this->video) {
         this->video->setTitle(liveData.title);
     }
-    
+
     // 同时更新侧边栏标题（如果存在）
     if (this->shouldShowSidebar() && this->liveTitleLabel) {
         this->liveTitleLabel->setText(liveData.title);
@@ -913,8 +915,8 @@ void LiveActivity::follow_anchor(bool follow) {
     uint64_t uid = this->liveRoomPlayInfo.uid;
     if (uid == 0) return;
 
-    // 预先更新 UI
-    if (this->shouldShowSidebar() && this->liveAuthor) {
+    // 预先更新 UI（不依赖侧边栏设置）
+    if (this->liveAuthor) {
         this->liveAuthor->setHintType(follow ? InfoHintType::UP_FOLLOWING : InfoHintType::UP_NOT_FOLLOWED);
     }
 
@@ -930,7 +932,7 @@ void LiveActivity::follow_anchor(bool follow) {
             brls::sync([ASYNC_TOKEN]() {
                 ASYNC_RELEASE
                 // 回滚 UI
-                if (this->shouldShowSidebar() && this->liveAuthor) {
+                if (this->liveAuthor) {
                     this->liveAuthor->setHintType(this->anchor_following ? InfoHintType::UP_FOLLOWING
                                                                          : InfoHintType::UP_NOT_FOLLOWED);
                 }
@@ -941,12 +943,12 @@ void LiveActivity::follow_anchor(bool follow) {
 // 添加主播称号信息处理函数
 void LiveActivity::onAnchorTitleInfo(const std::string& title) {
     brls::Logger::debug("LiveActivity: onAnchorTitleInfo: 称号={}", title);
-    
+
     // 保存称号
     this->anchorTitle = title;
-    
-    if (this->shouldShowSidebar() && this->anchorTitleLabel) {
-        // 设置称号标签文本
+
+    // 设置称号标签文本（不依赖侧边栏设置）
+    if (this->anchorTitleLabel) {
         if (!title.empty()) {
             this->anchorTitleLabel->setText(title);
             this->anchorTitleLabel->setVisibility(brls::Visibility::VISIBLE);
