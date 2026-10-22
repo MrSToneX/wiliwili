@@ -6,7 +6,6 @@
 #include "presenter/home_live.hpp"
 #include "bilibili/result/home_live_result.h"
 #include "borealis/core/i18n.hpp"
-#include "utils/config_helper.hpp"
 
 using namespace brls::literals;
 
@@ -25,14 +24,8 @@ void HomeLiveRequest::requestData(int main, int sub, int page) {
     staticPage = page;
 
     if (main == 0 && sub == 0) {
-        // 检查登录状态，未登录时使用 V2 接口以获取足够的推荐数据
-        if (ProgramConfig::instance().hasLoginInfo()) {
-            // 使用 V1 接口访问，同时获取全站推荐与关注的直播
-            this->requestLiveList(main, sub, page);
-        } else {
-            // 未登录时使用 V2 接口，只访问指定分区的推荐
-            this->requestLiveListV2(main, sub, page);
-        }
+        // 使用 V1 接口访问，同时获取全站推荐与关注的直播
+        this->requestLiveList(main, sub, page);
     } else {
         // 使用 V2 接口访问，只访问指定分区的推荐
         this->requestLiveListV2(main, sub, page);

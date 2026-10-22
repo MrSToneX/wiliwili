@@ -340,12 +340,13 @@ void HomeLive::onLiveList(const bilibili::LiveVideoListResult& result, int index
     brls::Threading::sync([this, result, index]() {
         auto* datasource = dynamic_cast<DataSourceLiveVideoList*>(recyclingGrid->getDataSource());
         if (datasource && index != 1) {
-            if (result.empty()) return;
+            // 加载更多数据时，如果为空则不追加，但不覆盖整个页面
             if (!result.empty()) {
                 datasource->appendData(result);
                 recyclingGrid->notifyDataChanged();
             }
         } else {
+            // 第一页数据
             if (result.empty())
                 recyclingGrid->setEmpty();
             else
@@ -384,7 +385,12 @@ void HomeLive::switchChannel() {
 }
 
 void HomeLive::onError(const std::string& error) {
-    brls::sync([this, error]() { this->recyclingGrid->setError(error); });
+    brls::sync([this, error]() {
+        // 只在没有数据源时才显示错误状态，避免清空已有数据
+        if (!recyclingGrid->getDataSource()) {
+            this->recyclingGrid->setError(error);
+        }
+    });
 }
 
 HomeLive::~HomeLive() { brls::Logger::debug("Fragment HomeLiveActivity: delete"); }
