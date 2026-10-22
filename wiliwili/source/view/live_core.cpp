@@ -190,7 +190,7 @@ void LiveDanmakuCore::refresh() {
 void LiveDanmakuCore::add(const std::vector<LiveDanmakuItem> &dan_l) {
     std::vector<LiveDanmakuItem> filtered_danmakus;
     filtered_danmakus.reserve(dan_l.size());
-    
+
     // 先在当前线程进行过滤，避免在锁内部执行过滤操作
     for (const auto &i : dan_l) {
         // 应用所有过滤条件
@@ -200,24 +200,24 @@ void LiveDanmakuCore::add(const std::vector<LiveDanmakuItem> &dan_l) {
             continue;
         else if (i.danmaku->dan_type != 4 && i.danmaku->dan_type != 5 && !DanmakuCore::DANMAKU_FILTER_SHOW_SCROLL)
             continue;
-        if (i.danmaku->user_level < DANMAKU_FILTER_LEVEL_LIVE) 
+        if (i.danmaku->user_level < DANMAKU_FILTER_LEVEL_LIVE)
             continue;
-        if (i.danmaku->dan_color != 0xffffff && !DanmakuCore::DANMAKU_FILTER_SHOW_COLOR) 
+        if (i.danmaku->dan_color != 0xffffff && !DanmakuCore::DANMAKU_FILTER_SHOW_COLOR)
             continue;
-        
+
         // 通过过滤的弹幕添加到临时列表
         filtered_danmakus.emplace_back(i);
     }
-    
+
     // 如果没有通过过滤的弹幕，直接返回
     if (filtered_danmakus.empty()) {
         return;
     }
-    
+
     // 加锁保护 next 队列，使用RAII方式管理锁
     {
         std::lock_guard<std::mutex> lock(this->next_mutex);
-        
+
         // 检查队列容量，如果队列过长则先清理一部分
         if (this->next.size() + filtered_danmakus.size() > 200) {
             // 保留最新的100条
@@ -225,7 +225,7 @@ void LiveDanmakuCore::add(const std::vector<LiveDanmakuItem> &dan_l) {
                 this->next.pop_back();
             }
         }
-        
+
         // 一次性将所有过滤后的弹幕添加到队首
         for (auto& item : filtered_danmakus) {
             this->next.emplace_front(std::move(item));

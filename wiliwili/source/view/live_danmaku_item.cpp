@@ -41,9 +41,13 @@ void LiveDanmakuItemView::setDanmaku(const LiveDanmakuItem& danmaku) {
     // 判断是否是超级留言(SC)
     if (danmaku.type == LiveDanmakuItem::Type::SUPER_CHAT) {
         // 处理超级留言
-        
-        // 设置用户名
-        this->usernameLabel->setText(!danmaku.super_chat->user_name.empty() ? danmaku.super_chat->user_name : "用户");
+
+        // 设置用户名，如果用户名是星号或空，则显示"用户"
+        std::string displayName = danmaku.super_chat->user_name;
+        if (displayName.empty() || displayName == "***" || displayName == "**" || displayName == "*") {
+            displayName = "用户";
+        }
+        this->usernameLabel->setText(displayName);
         
         // 隐藏等级
         this->levelBox->setVisibility(brls::Visibility::GONE);
@@ -142,9 +146,13 @@ void LiveDanmakuItemView::setDanmaku(const LiveDanmakuItem& danmaku) {
     }
     
     // 以下是普通弹幕的处理逻辑
-    
-    // 设置用户名
-    this->usernameLabel->setText(!danmaku.danmaku->user_name.empty() ? danmaku.danmaku->user_name : "用户");
+
+    // 设置用户名，如果用户名是星号或空，则显示"用户"
+    std::string displayName = danmaku.danmaku->user_name;
+    if (displayName.empty() || displayName == "***" || displayName == "**" || displayName == "*") {
+        displayName = "用户";
+    }
+    this->usernameLabel->setText(displayName);
     
     // 隐藏SC金额标签
     this->scPriceBox->setVisibility(brls::Visibility::GONE);

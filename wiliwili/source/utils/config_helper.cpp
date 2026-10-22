@@ -304,7 +304,7 @@ std::unordered_map<SettingItem, ProgramOption> ProgramConfig::SETTING_MAP = {
 
     /// Custom
     {SettingItem::UP_FILTER, {"up_filter", {}, {}, 0}},
-    {SettingItem::LIVE_DANMAKU_FILTER_LEVEL, {"live_danmaku_filter_level", {}, {}, 0}},
+    {SettingItem::LIVE_DANMAKU_FILTER_LEVEL, {"live_danmaku_filter_level", {}, {}, 0}}, // 默认0，显示所有等级的弹幕
     {SettingItem::CUSTOM_THEME_COLOR, {"custom_theme_color", {}, {}, 0}},
 };
 

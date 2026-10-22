@@ -19,7 +19,19 @@
 #include <SDL2/SDL_main.h>
 #endif
 
+#ifdef __SWITCH__
+#include <switch.h>
+#endif
+
 int main(int argc, char* argv[]) {
+
+#ifdef __SWITCH__
+    // 初始化 nxlink 连接
+    socketInitializeDefault();
+    nxlinkStdio();  // 将 stdout/stderr 重定向到 nxlink
+	//brls::Logger::setLogOutput(std::fopen("sdmc:/wiliwili.log", "w+"));
+#endif
+
     for (int i = 1; i < argc; i++) {
         if (std::strcmp(argv[i], "-d") == 0) {
             brls::Logger::setLogLevel(brls::LogLevel::LOG_DEBUG);
@@ -102,7 +114,9 @@ int main(int argc, char* argv[]) {
 
     // Cleanup curl and Check whether restart is required
     ProgramConfig::instance().exit(argv);
-
+#ifdef __SWITCH__
+    socketExit();
+#endif
     // Exit
     return EXIT_SUCCESS;
 }
